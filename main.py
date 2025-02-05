@@ -11,6 +11,10 @@ import requests
 TOKEN = os.getenv("DISCORD_TOKEN")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))  # Convert to integer for Discord channel ID
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID")
+
 
 # Set up the bot
 intents = discord.Intents.default()
@@ -23,6 +27,48 @@ intents.guilds = True
 
 # TMDB API URL for different categories
 TMDB_BASE_URL = "https://api.themoviedb.org/3/discover/movie"
+
+# YouTube API endpoint
+YOUTUBE_API_URL = f"https://www.googleapis.com/youtube/v3/search?key={YOUTUBE_API_KEY}&channelId={YOUTUBE_CHANNEL_ID}&part=snippet&order=date&maxResults=1"
+
+last_video_id = None  # Store last posted video ID
+
+
+async def check_youtube():
+    """Check for new YouTube videos every hour."""
+    global last_video_id
+    await bot.wait_until_ready()
+    channel = bot.get_channel(DISCORD_CHANNEL_ID)
+
+    while not bot.is_closed():
+        try:
+            response = requests.get(YOUTUBE_API_URL)
+            data = response.json()
+
+            if "items" in data and data["items"]:
+                video = data["items"][0]
+                video_id = video["id"].get("videoId")
+                video_title = video["snippet"]["title"]
+                video_url = f"https://www.youtube.com/watch?v={video_id}"
+
+                if video_id and video_id != last_video_id:
+                    last_video_id = video_id  # Update last posted video
+
+                    embed = discord.Embed(
+                        title="📢 **New YouTube Video!** 🎥",
+                        description=f"**{video_title}**\n\n[Watch now!]({video_url})",
+                        color=discord.Color.red(),
+                    )
+                    embed.set_thumbnail(url=video["snippet"]["thumbnails"]["high"]["url"])
+                    embed.set_footer(text="Go check it out!")
+
+                    await channel.send(embed=embed)
+                    print(f"✅ New video posted: {video_title}")
+
+        except Exception as e:
+            print(f"⚠️ Error checking YouTube: {e}")
+
+        await asyncio.sleep(3600)  # Wait 1 hour before checking again
 
 HEADERS = {
     "Authorization": f"Bearer {TMDB_API_KEY}",
@@ -101,6 +147,7 @@ async def post_movie_recommendations():
 async def on_ready():
     print(f"Logged in as {bot.user}")
     bot.loop.create_task(post_movie_recommendations())
+    bot.loop.create_task(check_youtube())
 
 
 bot.run(TOKEN)
