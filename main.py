@@ -16,6 +16,7 @@ DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
 YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID")
 
 
+
 # Set up the bot
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix='.', intents=intents)
@@ -31,7 +32,18 @@ TMDB_BASE_URL = "https://api.themoviedb.org/3/discover/movie"
 # YouTube API endpoint
 YOUTUBE_API_URL = f"https://www.googleapis.com/youtube/v3/search?key={YOUTUBE_API_KEY}&channelId={YOUTUBE_CHANNEL_ID}&part=snippet&order=date&maxResults=1"
 
+# Load QuotaGuard Static proxy from Heroku config
+QUOTAGUARD_URL = os.getenv("QUOTAGUARDSTATIC_URL")
+
+
 last_video_id = None  # Store last posted video ID
+
+
+# Setup the proxy for requests
+proxies = {
+    "http": QUOTAGUARD_URL,
+    "https": QUOTAGUARD_URL
+}
 
 
 async def check_youtube():
@@ -42,7 +54,7 @@ async def check_youtube():
 
     while not bot.is_closed():
         try:
-            response = requests.get(YOUTUBE_API_URL)
+            response = requests.get(YOUTUBE_API_URL, proxies=proxies)
             data = response.json()
 
             if "items" in data and data["items"]:
